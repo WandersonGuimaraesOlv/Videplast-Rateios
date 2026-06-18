@@ -1,12 +1,4 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.jsx' // Importação correta na mesma pasta
-
-ReactDOM.createRoot(document.getElementById('root')).render(
-    <React.StrictMode>
-        <App />
-    </React.StrictMode>,
-)
+import React, { useState } from 'react';
 
 // Ordem estrita e obrigatória definida para o relatório consolidado da Videplast
 const ORDEM_SETORES = [
@@ -65,10 +57,9 @@ function App() {
         formData.append('setores', arquivoSetores);
 
         try {
-            // Endpoint que fará o cruzamento por S/N, agrupamento e soma por setor
             const response = await fetch('http://localhost:5000/api/rateio/impressoras', {
                 method: 'POST',
-                body: formData // Envia os arquivos multipart/form-data para o backend Node
+                body: formData
             });
             const data = await response.json();
 
@@ -141,7 +132,7 @@ function App() {
                     </form>
                 </section>
 
-                {/* Bloco 2: Exibição da Tabela Consolidada (Regras Estritas) */}
+                {/* Bloco 2: Exibição da Tabela Consolidada */}
                 {relatorioConsolidado.length > 0 && (
                     <section style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                         <h3 style={{ marginBottom: '1rem', color: '#333' }}>Relatório de Impressão Consolidado</h3>
@@ -155,7 +146,6 @@ function App() {
                             </thead>
                             <tbody>
                                 {ORDEM_SETORES.map((setor, index) => {
-                                    // Procura o total calculado para o setor correspondente
                                     const correspondencia = relatorioConsolidado.find(
                                         item => item.setor.toUpperCase().trim() === setor.toUpperCase().trim()
                                     );
@@ -169,7 +159,6 @@ function App() {
                                         </tr>
                                     );
                                 })}
-                                {/* Rodapé Obrigatório com o Total Geral */}
                                 <tr style={{ backgroundColor: '#e5e7eb', fontWeight: 'bold' }}>
                                     <td colSpan="2" style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'right' }}>TOTAL GERAL:</td>
                                     <td style={{ padding: '12px', border: '1px solid #ddd', color: '#0070f3' }}>{totalGeralPaginas.toLocaleString('pt-BR')}</td>
@@ -179,7 +168,7 @@ function App() {
                     </section>
                 )}
 
-                {/* Bloco 3: Diagnóstico de Ambiente Local */}
+                {/* Bloco 3: Diagnóstico */}
                 <section style={{ backgroundColor: '#f5f5f5', padding: '1.5rem', borderRadius: '8px' }}>
                     <h4>Ferramentas de Diagnóstico</h4>
                     <p style={{ fontSize: '14px', color: '#666', marginBottom: '0.5rem' }}>Verifique se o backend e o banco de dados estão respondendo normalmente.</p>
@@ -200,7 +189,6 @@ function App() {
                     </button>
                 </section>
 
-                {/* Exibição de Mensagens/Status */}
                 {mensagem && (
                     <div style={{
                         padding: '15px',
