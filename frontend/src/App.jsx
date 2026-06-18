@@ -1,4 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx' // Importação correta na mesma pasta
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+    <React.StrictMode>
+        <App />
+    </React.StrictMode>,
+)
 
 // Ordem estrita e obrigatória definida para o relatório consolidado da Videplast
 const ORDEM_SETORES = [
