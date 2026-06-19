@@ -22,14 +22,25 @@ const ORDEM_SETORES = [
   "ALMOXARIFADO", "PCP", "ARTES", "ARTES - COLORIDA"
 ];
 
-// Função de extração de texto segura
+// Função de extração de texto ultra-segura
 const extrairTextoPdf = async (buffer) => {
   try {
-    // Verifica se é função ou default (compatibilidade de versões)
-    const parser = typeof pdfParse === 'function' ? pdfParse : pdfParse.default;
-    if (typeof parser !== 'function') {
-      throw new Error("A biblioteca pdf-parse não exporta uma função válida.");
+    // Tenta todas as formas possíveis de exportação da biblioteca
+    let parser;
+    if (typeof pdfParse === 'function') {
+      parser = pdfParse;
+    } else if (pdfParse && typeof pdfParse.default === 'function') {
+      parser = pdfParse.default;
+    } else if (pdfParse && typeof pdfParse.PDFParse === 'function') {
+      // Suporte para versões mais recentes (2.x) que usam classes
+      const instance = new pdfParse.PDFParse();
+      const data = await instance.parse(buffer);
+      return data.text;
+    } else {
+      console.error('Estrutura do pdf-parse recebida:', typeof pdfParse, Object.keys(pdfParse || {}));
+      throw new Error("A biblioteca pdf-parse não foi carregada como uma função válida.");
     }
+
     const data = await parser(buffer);
     return data.text;
   } catch (err) {
@@ -107,7 +118,6 @@ app.post('/api/rateio/impressoras', upload.fields([
         }
       }
     } else {
-      // Processamento Excel/CSV para medição se não for PDF
       const workbookMed = XLSX.read(medicaoFile.buffer, { type: 'buffer' });
       const dadosMedicao = XLSX.utils.sheet_to_json(workbookMed.Sheets[workbookMed.SheetNames[0]]);
       
