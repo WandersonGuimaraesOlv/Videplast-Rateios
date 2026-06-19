@@ -44,12 +44,12 @@ function App() {
     const processarRelatorioImpressao = async (e) => {
         e.preventDefault();
         if (!arquivoMedicao || !arquivoSetores) {
-            alert('Por favor, selecione ambos os arquivos (Medição e Setores/IPs) para realizar o cruzamento.');
+            alert('Por favor, selecione ambos os ficheiros (Medição e Setores/IPs) para realizar o cruzamento.');
             return;
         }
 
         setLoading(true);
-        setMensagem('Processando e cruzando dados de impressão...');
+        setMensagem('A processar e a cruzar dados de impressão...');
         setRelatorioConsolidado([]);
 
         const formData = new FormData();
@@ -80,7 +80,7 @@ function App() {
         <div style={{ padding: '2rem', fontFamily: 'sans-serif', maxWidth: '1000px', margin: '0 auto' }}>
             <header style={{ borderBottom: '2px solid #0070f3', paddingBottom: '1rem', marginBottom: '2rem' }}>
                 <h1>Sistema de Rateios Videplast</h1>
-                <p style={{ color: '#666' }}>Painel de Controle e Automação de Relatórios Consolidados</p>
+                <p style={{ color: '#666' }}>Painel de Controlo e Automação de Relatórios Consolidados</p>
             </header>
 
             <main style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -92,17 +92,17 @@ function App() {
 
                         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                             <div style={{ flex: '1', minWidth: '250px' }}>
-                                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>1. Lista Medição / Faturamento (CSV/Excel):</label>
+                                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>1. Fatura / Medição (PDF, CSV ou Excel):</label>
                                 <input
                                     type="file"
-                                    accept=".csv,.xls,.xlsx"
+                                    accept=".csv,.xls,.xlsx,.pdf"
                                     onChange={(e) => setArquivoMedicao(e.target.files[0])}
                                     style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
                                 />
                             </div>
 
                             <div style={{ flex: '1', minWidth: '250px' }}>
-                                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>2. Lista Setores / IPs de Origem (CSV/Excel):</label>
+                                <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.5rem' }}>2. Lista Setores / IPs (CSV/Excel):</label>
                                 <input
                                     type="file"
                                     accept=".csv,.xls,.xlsx"
@@ -127,7 +127,7 @@ function App() {
                                 fontWeight: 'bold'
                             }}
                         >
-                            {loading ? 'Processando Arquivos...' : 'Cruzar Dados e Somar por Setor'}
+                            {loading ? 'A processar Ficheiros...' : 'Cruzar Dados e Somar por Setor'}
                         </button>
                     </form>
                 </section>
@@ -155,13 +155,13 @@ function App() {
                                         <tr key={setor} style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : '#fff' }}>
                                             <td style={{ padding: '10px', border: '1px solid #ddd', fontWeight: 'bold' }}>{index + 1}</td>
                                             <td style={{ padding: '10px', border: '1px solid #ddd' }}>{setor}</td>
-                                            <td style={{ padding: '10px', border: '1px solid #ddd' }}>{totalPaginas.toLocaleString('pt-BR')}</td>
+                                            <td style={{ padding: '10px', border: '1px solid #ddd' }}>{totalPaginas.toLocaleString('pt-PT')}</td>
                                         </tr>
                                     );
                                 })}
                                 <tr style={{ backgroundColor: '#e5e7eb', fontWeight: 'bold' }}>
                                     <td colSpan="2" style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'right' }}>TOTAL GERAL:</td>
-                                    <td style={{ padding: '12px', border: '1px solid #ddd', color: '#0070f3' }}>{totalGeralPaginas.toLocaleString('pt-BR')}</td>
+                                    <td style={{ padding: '12px', border: '1px solid #ddd', color: '#0070f3' }}>{totalGeralPaginas.toLocaleString('pt-PT')}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -171,7 +171,7 @@ function App() {
                 {/* Bloco 3: Diagnóstico */}
                 <section style={{ backgroundColor: '#f5f5f5', padding: '1.5rem', borderRadius: '8px' }}>
                     <h4>Ferramentas de Diagnóstico</h4>
-                    <p style={{ fontSize: '14px', color: '#666', marginBottom: '0.5rem' }}>Verifique se o backend e o banco de dados estão respondendo normalmente.</p>
+                    <p style={{ fontSize: '14px', color: '#666', marginBottom: '0.5rem' }}>Verifique se o backend e a base de dados estão a responder normalmente.</p>
                     <button
                         onClick={testarConexao}
                         disabled={loading}

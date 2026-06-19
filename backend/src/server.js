@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const XLSX = require('xlsx');
+const pdfParse = require('pdf-parse');
 const supabase = require('./supabaseClient');
 
 const app = express();
@@ -11,11 +12,12 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Configuração do Multer para guardar arquivos temporariamente na memória ram
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// Ordem estrita e obrigatória definida para o relatório consolidado da Videplast
+// Correção à prova de falhas para a biblioteca do PDF
+const extrairTextoPdf = typeof pdfParse === 'function' ? pdfParse : pdfParse.default;
+
 const ORDEM_SETORES = [
   "ACABAMENTO", "EXPEDIÇÃO", "SALA DE TINTAS", "LABORATORIO",
   "CONTROLE DE QUALIDADE", "PCM", "CADASTRO", "IMPRESSÃO",
@@ -23,21 +25,20 @@ const ORDEM_SETORES = [
   "ALMOXARIFADO", "PCP", "ARTES", "ARTES - COLORIDA"
 ];
 
-// Rota base de verificação do status da API
-app.get('/', (req, res) => {
-  res.send('API do Sistema de Rateios rodando com sucesso!');
-});
-
-// Endpoint Original de Teste Rápido
+// ==========================================
+// ROTA DE DIAGNÓSTICO (Para o botão do Frontend)
+// ==========================================
 app.post('/api/teste-rateio', async (req, res) => {
   try {
     if (!supabase) throw new Error('O cliente do Supabase não foi inicializado.');
+
     const { data: ccData, error: ccError } = await supabase
       .from('centros_custo')
       .upsert([{ codigo: '9999', nome: 'SETOR DE TESTE API', ordem: 99 }], { onConflict: 'codigo' })
       .select();
 
     if (ccError) throw ccError;
+
     const { data: logData, error: logError } = await supabase
       .from('log_rateios')
       .insert([{
@@ -49,6 +50,7 @@ app.post('/api/teste-rateio', async (req, res) => {
       }]).select();
 
     if (logError) throw logError;
+
     res.json({ sucesso: true, mensagem: 'Conexão bem-sucedida com o Supabase!', centroCusto: ccData[0] });
   } catch (error) {
     res.status(500).json({ sucesso: false, erro: error.message });
@@ -64,53 +66,75 @@ app.post('/api/rateio/impressoras', upload.fields([
 ]), async (req, res) => {
   try {
     if (!req.files || !req.files['medicao'] || !req.files['setores']) {
-      return res.status(400).json({ sucesso: false, erro: 'Ambos os arquivos (medicao e setores) são obrigatórios.' });
+      return res.status(400).json({ sucesso: false, erro: 'Ambos os ficheiros são obrigatórios.' });
     }
 
-    // 1. Ler o arquivo de Medição / Faturamento da memória
-    const medicaoFile = req.files['medicao'][0];
-    const workbookMed = XLSX.read(medicaoFile.buffer, { type: 'buffer' });
-    const sheetMedName = workbookMed.SheetNames[0];
-    const dadosMedicao = XLSX.utils.sheet_to_json(workbookMed.Sheets[sheetMedName]);
-
-    // 2. Ler o arquivo de Setores / IPs de Origem da memória
+    // 1. Ler PRIMEIRO o ficheiro de Setores / IPs
     const setoresFile = req.files['setores'][0];
     const workbookSet = XLSX.read(setoresFile.buffer, { type: 'buffer' });
     const sheetSetName = workbookSet.SheetNames[0];
-    const dadosSetores = XLSX.utils.sheet_to_json(workbookSet.Sheets[sheetSetName]);
+    const dadosSetoresIniciais = XLSX.utils.sheet_to_json(workbookSet.Sheets[sheetSetName]);
 
-    // Mapeamento dinâmico para facilitar a busca do setor usando o Número de Série (S/N)
-    // Chave: S/N (Tratado sem espaços) -> Valor: Setor correspondente
     const mapaSetoresPorSN = {};
-
-    dadosSetores.forEach(linha => {
-      // Tenta achar colunas comuns para Número de Série e Setor
-      const sn = (linha['S/N'] || linha['SerialNumber'] || linha['Série'] || '').toString().trim();
-      const setor = (linha['Setor'] || linha['Departamento'] || '').toString().trim();
-
+    dadosSetoresIniciais.forEach(linha => {
+      const sn = (linha['S/N'] || linha['SerialNumber'] || linha['Série'] || '').toString().trim().toUpperCase();
+      const setor = (linha['Setor'] || linha['Departamento'] || '').toString().trim().toUpperCase();
       if (sn && setor) {
-        mapaSetoresPorSN[sn.toUpperCase()] = setor.toUpperCase();
+        mapaSetoresPorSN[sn] = setor;
       }
     });
 
-    // Inicializa o somatório estruturado para cada setor da lista estrita da Videplast
-    const totalizadorSetores = {};
-    ORDEM_SETORES.forEach(setor => {
-      totalizadorSetores[setor] = 0;
-    });
+    // 2. Lógica para processar a Medição
+    const medicaoFile = req.files['medicao'][0];
+    let dadosMedicao = [];
 
+    // Se for um PDF:
+    if (medicaoFile.originalname.toLowerCase().endsWith('.pdf') || medicaoFile.mimetype === 'application/pdf') {
+
+      // Utilização da função de extração corrigida
+      if (!extrairTextoPdf) {
+        throw new Error("A biblioteca pdf-parse não foi carregada corretamente. Tente reinstalar com 'npm install pdf-parse'.");
+      }
+
+      const pdfData = await extrairTextoPdf(medicaoFile.buffer);
+      const linhasPdf = pdfData.text.split('\n');
+
+      linhasPdf.forEach(linha => {
+        const linhaUpper = linha.toUpperCase();
+
+        for (const sn in mapaSetoresPorSN) {
+          if (linhaUpper.includes(sn)) {
+            const linhaLimpa = linhaUpper.replace(/\./g, '');
+            const numerosEncontrados = linhaLimpa.match(/\d+/g);
+
+            if (numerosEncontrados) {
+              const paginas = parseInt(numerosEncontrados[numerosEncontrados.length - 1], 10);
+              dadosMedicao.push({ 'S/N': sn, 'Páginas/Mês': paginas });
+            }
+            break;
+          }
+        }
+      });
+    }
+    // Se for Excel/CSV:
+    else {
+      const workbookMed = XLSX.read(medicaoFile.buffer, { type: 'buffer' });
+      const sheetMedName = workbookMed.SheetNames[0];
+      dadosMedicao = XLSX.utils.sheet_to_json(workbookMed.Sheets[sheetMedName]);
+    }
+
+    // 3. Inicializa o somatório estrito
+    const totalizadorSetores = {};
+    ORDEM_SETORES.forEach(setor => { totalizadorSetores[setor] = 0; });
     let totalGeralAcumulado = 0;
 
-    // 3. Cruzamento de dados e soma das Páginas / Cópias
+    // 4. Cruzamento e soma final
     dadosMedicao.forEach(linha => {
       const snLinha = (linha['S/N'] || linha['SerialNumber'] || linha['Série'] || '').toString().trim().toUpperCase();
-      // Lê o volume de páginas (aceita variações comuns de cabeçalhos como NoCópias, Páginas ou Total)
       const paginas = parseInt(linha['Páginas/Mês'] || linha['NoCópias'] || linha['Páginas'] || linha['Total'] || 0, 10);
 
       if (snLinha && !isNaN(paginas)) {
-        // Encontra a qual setor esse Número de Série (S/N) pertence no cruzamento
         const setorIdentificado = mapaSetoresPorSN[snLinha];
-
         if (setorIdentificado && totalizadorSetores[setorIdentificado] !== undefined) {
           totalizadorSetores[setorIdentificado] += paginas;
           totalGeralAcumulado += paginas;
@@ -118,7 +142,6 @@ app.post('/api/rateio/impressoras', upload.fields([
       }
     });
 
-    // Formata o resultado no padrão final exigido para a tabela
     const dadosFormatados = ORDEM_SETORES.map((setor, index) => ({
       ordem: index + 1,
       setor: setor,
@@ -133,10 +156,10 @@ app.post('/api/rateio/impressoras', upload.fields([
 
   } catch (error) {
     console.error('Erro no processamento das impressoras:', error);
-    res.status(500).json({ sucesso: false, erro: 'Falha interna ao cruzar as planilhas: ' + error.message });
+    res.status(500).json({ sucesso: false, erro: 'Falha interna ao cruzar os ficheiros: ' + error.message });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`[Servidor] Ativo e rodando perfeitamente na porta ${PORT}`);
+  console.log(`[Servidor] Ativo e a correr perfeitamente na porta ${PORT}`);
 });
