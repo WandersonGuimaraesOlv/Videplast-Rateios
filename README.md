@@ -1,29 +1,25 @@
-# Sistema de Rateios
+# Sistema de Rateios Videplast
 
-Este é um projeto full-stack para gerenciamento de rateios.
+Cruza a fatura/medição mensal (PDF, CSV ou Excel) com a lista de setores e soma o consumo por setor, na ordem oficial do relatório:
 
-## Estrutura do Projeto
+- **Impressoras:** lista de setores com `S/N` (ou `SerialNumber`/`Série`) e `Setor`; medição com páginas (`Páginas/Mês`, `NoCópias`, `Páginas`, `Total` ou `Valor`).
+- **Telefonia:** lista de setores com `Número do Chip` e `Setor`; medição com o valor em R$.
 
-- `/backend`: API construída com Node.js e Express.
-- `/frontend`: Interface do usuário construída com React.
+O relatório mostra os 16 setores, o total geral, avisa setores e itens que ficaram de fora e exporta CSV para o Excel.
 
-## Como rodar
+## Rodar em desenvolvimento
 
-1. Execute o script de build para instalar as dependências:
-   ```bash
-   ./build.sh
-   ```
+```bash
+cd backend && npm install && npm run dev      # API em http://localhost:5000
+cd frontend && npm install && npm run dev     # app em http://localhost:5173 (repassa /api ao backend)
+cd backend && npm test                        # testes das regras de rateio
+```
 
-2. Configure as variáveis de ambiente no arquivo `.env` dentro da pasta `/backend`.
+## Produção (Docker)
 
-3. Inicie o backend:
-   ```bash
-   cd backend
-   npm run dev
-   ```
+```bash
+cp .env.example .env    # ajuste porta e subcaminho
+docker compose up -d --build
+```
 
-4. Inicie o frontend:
-   ```bash
-   cd frontend
-   npm run dev
-   ```
+Passo a passo no servidor Linux: [docs/DEPLOY-LINUX.md](docs/DEPLOY-LINUX.md). Estrutura e agentes: [AGENTS.md](AGENTS.md).

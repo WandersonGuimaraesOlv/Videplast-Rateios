@@ -1,0 +1,46 @@
+:root {
+  --cor-primaria: #0b5ed7;
+  --cor-sucesso: #10b981;
+  --cor-texto: #111111;
+  --cor-suave: #6b7280;
+  --cor-borda: #e5e7eb;
+  --cor-fundo: #fafafa;
+}
+
+.pagina { max-width: 1000px; margin: 0 auto; padding: 2rem 1rem; }
+.topo { border-bottom: 2px solid var(--cor-primaria); padding-bottom: 1rem; margin-bottom: 2rem; }
+.topo h1 { font-size: 1.6rem; }
+.topo p { color: var(--cor-suave); margin-top: .25rem; }
+.conteudo { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.cartao { background: #fff; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,.08); }
+.cartao h2 { font-size: 1.15rem; margin-bottom: 1rem; }
+.cartao-discreto { background: #f3f4f6; box-shadow: none; }
+.cartao-discreto p { color: var(--cor-suave); font-size: .9rem; margin: .25rem 0 .75rem; }
+.cabecalho-cartao { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.cabecalho-cartao h2 { margin: 0; }
+
+.formulario { display: flex; flex-direction: column; gap: 1rem; }
+.campos { display: flex; gap: 1rem; flex-wrap: wrap; }
+.campo { flex: 1; min-width: 250px; display: flex; flex-direction: column; gap: .4rem; font-weight: 600; }
+.campo input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font: inherit; font-weight: 400; }
+.campo small { color: var(--cor-suave); font-weight: 400; }
+
+.botao { align-self: flex-start; padding: 10px 18px; border: none; border-radius: 5px; font: inherit; font-weight: 600; cursor: pointer; background: #4b5563; color: #fff; }
+.botao-primario { background: var(--cor-sucesso); font-size: 1rem; padding: 12px 24px; }
+.botao:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+.tabela-rolagem { overflow-x: auto; }
+.tabela { width: 100%; border-collapse: collapse; }
+.tabela th, .tabela td { padding: 10px 12px; border: 1px solid #ddd; text-align: left; }
+.tabela thead th { background: var(--cor-primaria); color: #fff; }
+.tabela tbody tr:nth-child(odd) { background: #f9f9f9; }
+.tabela tfoot td { background: var(--cor-borda); font-weight: 700; }
+.tabela .numero { text-align: right; font-variant-numeric: tabular-nums; }
+
+.mensagem { padding: 12px 15px; border-radius: 6px; border: 1px solid; margin-top: .75rem; }
+.mensagem p + p { margin-top: .4rem; }
+.mensagem-erro { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.mensagem-sucesso { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+.mensagem-alerta { background: #fffbeb; border-color: #fde68a; color: #92400e; margin: 0 0 1rem; }
+.mensagem-info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
