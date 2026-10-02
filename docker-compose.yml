@@ -1,0 +1,27 @@
+# Sistema de Rateios — sobe frontend (Nginx) + API (Node) no servidor Linux.
+# Uso: cp .env.example .env && (edite o .env) && docker compose up -d --build
+name: rateios
+
+services:
+  web:
+    build:
+      context: .
+      args:
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-}
+    restart: unless-stopped
+    environment:
+      LIMITE_UPLOAD_MB: ${LIMITE_UPLOAD_MB:-50}
+    depends_on:
+      - api
+    ports:
+      # Só na máquina local: o Nginx do servidor aponta para cá.
+      - "127.0.0.1:${RATEIOS_PORTA:-8091}:80"
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      LIMITE_UPLOAD_MB: ${LIMITE_UPLOAD_MB:-50}
+    # Sem porta publicada: só o container web acessa
