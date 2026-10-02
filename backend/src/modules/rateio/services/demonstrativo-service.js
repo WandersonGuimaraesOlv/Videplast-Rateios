@@ -79,10 +79,14 @@ function lerResumoFatura(texto) {
   }
   // O que passa do valor das cópias é a locação/valor básico (ex.: R$ 532,70 da colorida)
   const valorCopias = preco ? paraNumero(preco[2]) : null;
+  // Cópias cobradas ("( 46.943,00 x R$0,07457 )"); a diferença para as lidas é crédito da fatura
+  const cobradas = texto.match(/\(\s*(\d{1,3}(?:\.\d{3})*),\d{2}\s*x\s*R\$/i);
   return {
     contrato: contrato ? `${contrato[1]} - ${contrato[2].toUpperCase()}` : null,
     mes: mes ? `${mes[1]}.${mes[2]}` : null,
     precoPagina: preco ? paraNumero(preco[1]) : null,
+    copiasCobradas: cobradas ? paraNumero(cobradas[1]) : null,
+    valorCopias,
     locacao: total !== null && valorCopias !== null ? Math.round((total - valorCopias) * 100) / 100 : 0,
     total,
   };

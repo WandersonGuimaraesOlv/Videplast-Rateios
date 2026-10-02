@@ -57,6 +57,19 @@ test('planilha histórica: cria a aba do mês novo e a coluna no Resumo', async 
   assert.equal(resumo.getCell('E4').formula, 'SUM(E2:E3)');
 });
 
+test('planilha histórica: crédito de cópias na fatura faz o Total da aba bater com a nota', async () => {
+  const relatorio = { dados: [{ setor: 'PCP', total: 6420 }, { setor: 'ARTES - COLORIDA', total: 0 }], valores: null, equipamentos: [] };
+  // 6.420 lidas, 5.000 cobradas × 0,07457 = 372,85
+  const faturas = [{ colorido: false, mes: '09.2026', precoPagina: 0.07457, locacao: 0, total: 372.85, copiasCobradas: 5000 }];
+  const resultado = await atualizarHistorico(await planilhaHistorica(), relatorio, faturas);
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(resultado.buffer);
+  const mes = wb.getWorksheet('09.2026');
+  assert.equal(mes.getCell('F2').formula, '372.85/6420');
+  assert.ok(Math.abs(mes.getCell('H2').result - 372.85) < 0.005);
+  assert.match(mes.getCell('A5').text, /6\.420 páginas lidas, 1\.420 de crédito, 5\.000 cobradas/);
+});
+
 test('planilha sem abas mensais não é tratada como histórico', async () => {
   const wb = new ExcelJS.Workbook();
   wb.addWorksheet('Setores').addRow(['S/N', 'Setor']);

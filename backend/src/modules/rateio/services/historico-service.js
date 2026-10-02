@@ -96,22 +96,53 @@ function preencherMes(aba, relatorio, faturas) {
 
   const porSetor = Object.fromEntries(relatorio.dados.map((d) => [d.setor, d.total]));
   const linhas = linhasDosSetores(aba);
+  const ehColorida = (setor) => / - COLORIDA$/.test(setor);
+
+  // Quando a fatura cobra menos cópias do que as lidas (crédito), o custo por página vira
+  // "valor das cópias ÷ páginas", para o Total da aba bater com a nota fiscal.
+  const custoPorPagina = (lista, colorido) => {
+    const p = preco(lista);
+    const valorCopias = arredondar2(lista.reduce((s, f) => s + (f.total ?? 0) - (f.locacao || 0), 0));
+    const paginas = linhas.filter((l) => ehColorida(l.setor) === colorido).reduce((s, l) => s + (porSetor[l.setor] ?? 0), 0);
+    if (p === null || !paginas || lista.some((f) => f.total == null) || Math.abs(paginas * p - valorCopias) < 0.01) {
+      return { valor: p };
+    }
+    return { valor: valorCopias / paginas, formula: `${valorCopias}/${paginas}`, paginas, valorCopias, preco: p };
+  };
+  const custos = { pb: custoPorPagina(pb, false), cor: custoPorPagina(cor, true) };
   const naoEncontrados = Object.keys(porSetor).filter((s) => porSetor[s] > 0 && !linhas.some((l) => l.setor === s));
 
   // Valores e resultados em cache (o Excel recalcula ao abrir)
   const totais = {};
   linhas.forEach(({ r, setor }) => {
-    const colorido = / - COLORIDA$/.test(setor);
+    const colorido = ehColorida(setor);
     const paginas = porSetor[setor] ?? 0;
     aba.getCell(r, cPaginas).value = paginas;
-    const p = preco(colorido ? cor : pb);
-    if (cPreco && p !== null) aba.getCell(r, cPreco).value = p;
+    const custo = colorido ? custos.cor : custos.pb;
+    if (cPreco && custo.valor !== null) {
+      aba.getCell(r, cPreco).value = custo.formula ? { formula: custo.formula, result: custo.valor } : custo.valor;
+    }
     if (cLocacao) aba.getCell(r, cLocacao).value = colorido ? locacao(cor) : 0;
-    const precoFinal = Number(aba.getCell(r, cPreco).value) || 0;
+    const celPreco = aba.getCell(r, cPreco);
+    const precoFinal = Number(celPreco.type === ExcelJS.ValueType.Formula ? celPreco.result : celPreco.value) || 0;
     const locacaoFinal = Number(aba.getCell(r, cLocacao).value) || 0;
     totais[r] = paginas * precoFinal + locacaoFinal;
   });
-  return { linhas, totais, cTotal, cRateio, cPaginas, naoEncontrados };
+  // Notas para quem confere com a nota fiscal
+  const notas = [];
+  [[custos.pb, pb, 'P&B'], [custos.cor, cor, 'colorida']].forEach(([custo, lista, nome]) => {
+    if (!custo.formula) return;
+    const cobradas = lista.reduce((s, f) => s + (f.copiasCobradas || 0), 0);
+    const credito = cobradas ? custo.paginas - cobradas : null;
+    const fmt = (n, casas = 2) => n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+    notas.push(
+      `Fatura ${nome}: ${fmt(custo.paginas, 0)} páginas lidas` +
+        (credito ? `, ${fmt(credito, 0)} de crédito, ${fmt(cobradas, 0)} cobradas` : '') +
+        ` × R$ ${fmt(custo.preco, 5)} = R$ ${fmt(custo.valorCopias)}. ` +
+        `Custo por página usado: R$ ${fmt(custo.valor, 5)} (valor das cópias ÷ páginas lidas).`
+    );
+  });
+  return { linhas, totais, cTotal, cRateio, cPaginas, naoEncontrados, notas };
 }
 
 /** Atualiza os resultados em cache das fórmulas mais comuns da aba do mês, para quem abre sem recalcular. */
@@ -131,6 +162,29 @@ function atualizarCache(aba, { linhas, totais, cTotal, cRateio, cPaginas }) {
     definirResultado(aba.getCell(linhaTotal, cPaginas), linhas.reduce((s, { r }) => s + (Number(aba.getCell(r, cPaginas).value) || 0), 0));
     if (cTotal) definirResultado(aba.getCell(linhaTotal, cTotal), somaTotais);
   }
+}
+
+/** Resultado em cache de fórmulas do tipo "=J9+J4" (o quadro de rateio por centro de custo). */
+function atualizarSomaSimples(aba, celula) {
+  if (celula.type !== ExcelJS.ValueType.Formula || !/^\$?[A-Z]{1,3}\$?\d+(\s*\+\s*\$?[A-Z]{1,3}\$?\d+)*$/.test(celula.formula.trim())) return;
+  const result = celula.formula.split('+').reduce((s, ref) => {
+    const c = aba.getCell(ref.trim().replace(/\$/g, ''));
+    return s + (Number(c.type === ExcelJS.ValueType.Formula ? c.result : c.value) || 0);
+  }, 0);
+  celula.value = { formula: celula.formula, result };
+}
+
+/** Notas do custo por página logo abaixo da nota da aba (coluna A). */
+function escreverNotas(aba, { linhas, notas }) {
+  if (!notas.length || !linhas.length) return;
+  // Depois da última linha preenchida na coluna A (a nota original da aba fica onde está)
+  let r = linhas[linhas.length - 1].r + 1;
+  for (let i = r + 1; i <= aba.rowCount; i++) if (aba.getCell(i, 1).text) r = i;
+  notas.forEach((nota) => {
+    const celula = aba.getCell(++r, 1);
+    celula.value = nota;
+    celula.font = { italic: true, size: 9 };
+  });
 }
 
 /** Valor em R$ ao lado do quadro "VALOR A SER DESCONTADO" e a auditoria por equipamento mais à direita. */
@@ -186,6 +240,7 @@ function anexarValoresEAuditoria(aba, relatorio, faturas) {
         break;
       }
       celula.value = porCentro.get(centro) ?? 0;
+      atualizarSomaSimples(aba, aba.getCell(r, colCentro + 2));
     }
     colLivre = colValor + 2;
   }
@@ -316,6 +371,7 @@ async function atualizarHistorico(buffer, relatorio, faturas) {
 
   const preenchimento = preencherMes(aba, relatorio, faturas);
   atualizarCache(aba, preenchimento);
+  escreverNotas(aba, preenchimento);
   anexarValoresEAuditoria(aba, relatorio, faturas);
 
   const resumo = workbook.getWorksheet('Resumo');
