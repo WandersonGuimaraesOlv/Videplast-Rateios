@@ -1,5 +1,5 @@
 import { formatarTotal } from '../../../shared/lib/formatos.js'
-import { baixarCsvRelatorio } from '../services/exportar-csv.js'
+import { baixarPlanilha } from '../services/baixar-planilha.js'
 
 function Avisos({ avisos, tipo }) {
   const { setoresDesconhecidos = [], itensSemSetor = [], valorForaDoRelatorio = 0 } = avisos || {}
@@ -30,16 +30,19 @@ export default function TabelaRateio({ relatorio }) {
     <section className="cartao">
       <div className="cabecalho-cartao">
         <h2>Relatório consolidado de {tipo === 'telefonia' ? 'telefonia' : 'impressão'}</h2>
-        <button type="button" className="botao" onClick={() => baixarCsvRelatorio(relatorio)}>
-          Exportar CSV
-        </button>
+        {relatorio.planilha && (
+          <button type="button" className="botao botao-primario" onClick={() => baixarPlanilha(relatorio)}>
+            Baixar planilha (Excel)
+          </button>
+        )}
       </div>
       {arquivos.length > 0 && (
         <ul className="arquivos-lidos">
           {arquivos.map((a) => (
             <li key={a.nome}>
               {a.nome}
-              {a.colorido && ' (colorida)'}: <strong>{formatarTotal(a.total, tipo)}</strong>
+              {a.contrato ? ` (${a.contrato})` : a.colorido && ' (colorida)'}: <strong>{formatarTotal(a.total, tipo)}</strong>
+              {a.valorFatura != null && <> · fatura {formatarTotal(a.valorFatura, 'telefonia')}</>}
             </li>
           ))}
         </ul>

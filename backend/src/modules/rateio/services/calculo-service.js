@@ -53,6 +53,8 @@ const novoAcumulador = () => ({
   itensSemSetor: new Set(),
   valorForaDoRelatorio: 0,
   arquivos: [],
+  // Uma linha por equipamento lido, para a aba de auditoria
+  equipamentos: [],
 });
 
 function acumular(acc, setor, valor) {
@@ -68,15 +70,20 @@ function acumular(acc, setor, valor) {
 const setorColorido = (setor) =>
   ORDEM_SETORES.includes(`${setor} - COLORIDA`) ? `${setor} - COLORIDA` : setor;
 
-/** Soma leituras { codigo, valor } já extraídas, avisando as que não têm setor. */
-function somarLeituras(leituras, mapaSetores, { colorido = false, acc = novoAcumulador() } = {}) {
-  leituras.forEach(({ codigo, valor }) => {
-    const setor = buscarSetor(mapaSetores, codigo);
+/**
+ * Soma leituras { codigo, valor, serieImpressa? } já extraídas, avisando as que não têm setor.
+ * `arquivo` e `contrato` só servem para a auditoria por equipamento.
+ */
+function somarLeituras(leituras, mapaSetores, { colorido = false, acc = novoAcumulador(), arquivo = '', contrato = '' } = {}) {
+  leituras.forEach(({ codigo, valor, serieImpressa }) => {
+    const encontrado = buscarSetor(mapaSetores, codigo);
+    const setor = encontrado && colorido ? setorColorido(encontrado) : encontrado;
+    acc.equipamentos.push({ serie: serieImpressa || codigo, contrato, setor: setor || '', valor, arquivo });
     if (!setor) {
       if (valor > 0) acc.itensSemSetor.add(codigo);
       return;
     }
-    acumular(acc, colorido ? setorColorido(setor) : setor, valor);
+    acumular(acc, setor, valor);
   });
   return acc;
 }
@@ -99,7 +106,11 @@ function valorDaLinhaPdf(linhaUpper, isTelefonia) {
 function somarMedicaoTexto(texto, mapaSetores, isTelefonia, opcoes = {}) {
   const demonstrativo = isTelefonia ? [] : lerDemonstrativo(texto);
   if (demonstrativo.length > 0) {
-    const leituras = demonstrativo.map(({ serie, copias }) => ({ codigo: serie, valor: copias }));
+    const leituras = demonstrativo.map(({ serie, serieImpressa, copias }) => ({
+      codigo: serie,
+      serieImpressa,
+      valor: copias,
+    }));
     return somarLeituras(leituras, mapaSetores, opcoes);
   }
 
@@ -138,6 +149,7 @@ function montarRelatorio(acc, isTelefonia, setoresDesconhecidos = []) {
     dados: ORDEM_SETORES.map((setor, i) => ({ ordem: i + 1, setor, total: ajustar(acc.totais[setor]) })),
     totalGeral: ajustar(acc.totalGeral),
     arquivos: acc.arquivos,
+    equipamentos: acc.equipamentos,
     avisos: {
       setoresDesconhecidos,
       itensSemSetor: [...acc.itensSemSetor],

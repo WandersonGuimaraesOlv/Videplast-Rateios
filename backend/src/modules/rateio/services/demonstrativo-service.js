@@ -4,7 +4,7 @@
 //    série           código modelo vlr  [frq] anterior atual crédito cópias
 // Por isso as cópias são achadas testando as divisões possíveis da parte numérica até
 // encontrar uma em que atual − anterior = cópias.
-const { normalizarCodigo } = require('../../shared');
+const { normalizarCodigo, paraNumero } = require('../../shared');
 
 // Série (com pontos/espaços), código de 5 dígitos, modelo começando por letra, valor básico "0,00"
 const LINHA_EQUIPAMENTO = /^([A-Z0-9][A-Z0-9. ]*?)(\d{5})([A-Z][A-Z0-9-]*?)\d+,\d{2}(.*)$/;
@@ -51,12 +51,39 @@ function lerDemonstrativo(texto) {
     if (!match) continue;
     const copias = copiasDaLinha(match[4]);
     const serie = normalizarCodigo(match[1]);
-    if (copias !== null && serie.length >= 6) leituras.push({ serie, copias });
+    if (copias !== null && serie.length >= 6) {
+      // Série como impressa na fatura ("016.7PH.H0C.1V5"), para a auditoria
+      const serieImpressa = match[1].trim().replace(/[\s.]+$/, '').replace(/\s+/g, ' ');
+      leituras.push({ serie, serieImpressa, copias });
+    }
   }
   return leituras;
+}
+
+const MOEDA = /\d{1,3}(?:\.\d{3})*,\d{2}(?!\d)/g;
+
+/**
+ * Cabeçalho e rodapé da fatura: contrato ("21312 - P&B"), preço por página e total faturado.
+ * Campos não encontrados ficam null.
+ */
+function lerResumoFatura(texto) {
+  const contrato = texto.match(/(\d{4,6})\s*-\s*VIDEPLAST[^\n]*?-\s*(P&B|COLOR)\b/i);
+  const preco = texto.match(/x\s*R\$\s*(\d+,\d+)/i);
+  let total = null;
+  const inicio = texto.search(/Total do Faturam/i);
+  if (inicio >= 0) {
+    const rodape = texto.slice(inicio).split(/REAJUSTE|_{5,}/i)[0];
+    const valores = rodape.match(MOEDA);
+    if (valores) total = paraNumero(valores[valores.length - 1]);
+  }
+  return {
+    contrato: contrato ? `${contrato[1]} - ${contrato[2].toUpperCase()}` : null,
+    precoPagina: preco ? paraNumero(preco[1]) : null,
+    total,
+  };
 }
 
 /** Fatura de impressão colorida ("VIDEPLAST INDUSTRIA - COLOR"). */
 const ehColorido = (texto) => /-\s*COLOR\b/i.test(texto);
 
-module.exports = { lerDemonstrativo, copiasDaLinha, ehColorido };
+module.exports = { lerDemonstrativo, lerResumoFatura, copiasDaLinha, ehColorido };

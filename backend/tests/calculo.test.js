@@ -111,7 +111,8 @@ test('demonstrativo de faturamento: lê cópias das linhas grudadas do PDF', () 
     'R4P.066.131.2  37734M3655ID0,00 0413.964420.384 06.420',
     'Subtotal230,000',
   ].join('\n');
-  assert.deepEqual(lerDemonstrativo(texto), [
+  assert.equal(lerDemonstrativo(texto)[3].serieImpressa, '32M.008.78');
+  assert.deepEqual(lerDemonstrativo(texto).map(({ serie, copias }) => ({ serie, copias })), [
     { serie: '0167PHH0C1V5', copias: 3925 },
     { serie: '0167PHH0CX39', copias: 0 },
     { serie: '0167PHH0CX60', copias: 3332 },
@@ -162,4 +163,28 @@ test('lerTabela escolhe a aba do mês mais recente e acha o cabeçalho fora da l
   assert.deepEqual(lerTabela({ originalname: 'Rateio impressão.xlsx', buffer }), [
     { Impressoras: 'PCP', 'Nº Serie': 'AGOSTO123' },
   ]);
+});
+
+test('valores a descontar: total da fatura dividido por centro de custo na proporção das páginas', () => {
+  const { calcularValores } = require('../src/modules/rateio/services/valores-service');
+  const dados = [
+    { setor: 'IMPRESSÃO', total: 100 },
+    { setor: 'SALA DE TINTAS', total: 100 },
+    { setor: 'PCP', total: 100 },
+    { setor: 'ARTES - COLORIDA', total: 50 },
+  ];
+  const centros = { IMPRESSÃO: '1005PIMP01', 'SALA DE TINTAS': '1005PIMP01', PCP: '1005PAUX52', 'ARTES - COLORIDA': '1005PAUX51' };
+  const rotulos = [{ centroCusto: '1005PIMP01', rotulo: 'Impressão/ Sala de tintas' }];
+  const faturas = [{ colorido: false, total: 100 }, { colorido: true, total: 1511.16 }];
+  const { linhas, total } = calcularValores(dados, faturas, centros, rotulos);
+  assert.deepEqual(
+    linhas.map((l) => [l.centroCusto, l.setor, l.paginas, l.valor]),
+    [
+      ['1005PIMP01', 'Impressão/ Sala de tintas', 200, 66.67],
+      ['1005PAUX52', 'PCP', 100, 33.33],
+      ['1005PAUX51', 'Artes - Colorida', 50, 1511.16],
+    ]
+  );
+  assert.equal(total, 1611.16);
+  assert.equal(calcularValores(dados, [{ colorido: false, total: null }], centros), null);
 });

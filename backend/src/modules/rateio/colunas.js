@@ -6,6 +6,7 @@ const COLUNAS = {
   serie: ['sn', 'serialnumber', 'serial', 'serie', 'nserie', 'noserie', 'numerodeserie', 'numeroserie', 'nseries'],
   chip: ['numerodochip', 'numerochip', 'chip'],
   setor: ['setor', 'impressoras', 'impressora', 'departamento'],
+  centroCusto: ['centrodecusto', 'controdecusto', 'centrocusto', 'cc'],
   valor: ['paginasmes', 'nocopias', 'paginas', 'copias', 'total', 'valor'],
 };
 

@@ -1,6 +1,8 @@
 // Orquestra o rateio: lê a lista de setores e uma ou mais medições e devolve o relatório consolidado.
-const { ehPdf, lerTabela, extrairTextoPdf } = require('./leitura-service');
-const { ehColorido } = require('./demonstrativo-service');
+const { ehPdf, lerTabela, lerRotulosCentroCusto, extrairTextoPdf } = require('./leitura-service');
+const { ehColorido, lerResumoFatura } = require('./demonstrativo-service');
+const { montarCentrosCusto, calcularValores } = require('./valores-service');
+const { gerarPlanilha } = require('./planilha-service');
 const {
   detectarTelefonia,
   montarMapaSetores,
@@ -29,24 +31,31 @@ async function gerarRateio({ medicoes, setores }) {
   }
 
   const acc = novoAcumulador();
+  const faturas = [];
   for (const medicao of medicoes) {
     const antes = acc.totalGeral + acc.valorForaDoRelatorio;
+    const arquivo = medicao.originalname;
     let colorido = false;
+    let resumo = { contrato: null, precoPagina: null, total: null };
     if (ehPdf(medicao)) {
       const texto = await extrairTextoPdf(medicao.buffer);
       colorido = !isTelefonia && ehColorido(texto);
-      somarMedicaoTexto(texto, mapa, isTelefonia, { acc, colorido });
+      resumo = lerResumoFatura(texto);
+      somarMedicaoTexto(texto, mapa, isTelefonia, { acc, colorido, arquivo, contrato: resumo.contrato || '' });
     } else {
-      somarMedicaoTabela(lerTabela(medicao), mapa, isTelefonia, { acc });
+      somarMedicaoTabela(lerTabela(medicao), mapa, isTelefonia, { acc, arquivo });
     }
-    acc.arquivos.push({
-      nome: medicao.originalname,
-      colorido,
-      total: acc.totalGeral + acc.valorForaDoRelatorio - antes,
-    });
+    const total = acc.totalGeral + acc.valorForaDoRelatorio - antes;
+    acc.arquivos.push({ nome: arquivo, colorido, total, contrato: resumo.contrato, valorFatura: resumo.total });
+    faturas.push({ colorido, total: resumo.total });
   }
 
-  return montarRelatorio(acc, isTelefonia, setoresDesconhecidos);
+  const relatorio = montarRelatorio(acc, isTelefonia, setoresDesconhecidos);
+  relatorio.valores = isTelefonia
+    ? null
+    : calcularValores(relatorio.dados, faturas, montarCentrosCusto(linhasSetores), lerRotulosCentroCusto(setores));
+  relatorio.planilha = gerarPlanilha(relatorio).toString('base64');
+  return relatorio;
 }
 
 module.exports = { gerarRateio };

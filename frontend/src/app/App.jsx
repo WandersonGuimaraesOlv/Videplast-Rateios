@@ -1,4 +1,4 @@
-import { FormularioRateio, TabelaRateio, useRateio } from '../modules/rateio/index.js'
+import { FormularioRateio, TabelaRateio, TabelaValores, useRateio } from '../modules/rateio/index.js'
 import { PainelDiagnostico } from '../modules/diagnostico/index.js'
 import MensagemStatus from '../shared/components/MensagemStatus.jsx'
 
@@ -16,6 +16,7 @@ export default function App() {
         <FormularioRateio carregando={carregando} onProcessar={processar} />
         <MensagemStatus tipo="erro">{erro}</MensagemStatus>
         {relatorio && <TabelaRateio relatorio={relatorio} />}
+        {relatorio && <TabelaValores valores={relatorio.valores} />}
         <PainelDiagnostico />
       </main>
     </div>
