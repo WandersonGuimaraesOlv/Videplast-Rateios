@@ -8,7 +8,7 @@ export function baixarPlanilha(relatorio) {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `rateio-${relatorio.tipo}-${new Date().toISOString().slice(0, 10)}.xlsx`
+  link.download = relatorio.nomePlanilha || `rateio-${relatorio.tipo}.xlsx`
   link.click()
   URL.revokeObjectURL(url)
 }

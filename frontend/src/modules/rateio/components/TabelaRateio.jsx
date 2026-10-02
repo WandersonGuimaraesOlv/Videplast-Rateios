@@ -32,7 +32,7 @@ export default function TabelaRateio({ relatorio }) {
         <h2>Relatório consolidado de {tipo === 'telefonia' ? 'telefonia' : 'impressão'}</h2>
         {relatorio.planilha && (
           <button type="button" className="botao botao-primario" onClick={() => baixarPlanilha(relatorio)}>
-            Baixar planilha (Excel)
+            {relatorio.avisos?.historico ? 'Baixar planilha com o histórico (Excel)' : 'Baixar planilha (Excel)'}
           </button>
         )}
       </div>

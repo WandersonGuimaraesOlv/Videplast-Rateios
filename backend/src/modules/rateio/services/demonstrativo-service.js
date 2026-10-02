@@ -68,7 +68,8 @@ const MOEDA = /\d{1,3}(?:\.\d{3})*,\d{2}(?!\d)/g;
  */
 function lerResumoFatura(texto) {
   const contrato = texto.match(/(\d{4,6})\s*-\s*VIDEPLAST[^\n]*?-\s*(P&B|COLOR)\b/i);
-  const preco = texto.match(/x\s*R\$\s*(\d+,\d+)/i);
+  const preco = texto.match(/x\s*R\$\s*(\d+,\d+)\s*\)\s*(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+  const mes = texto.match(/DEMONSTRATIVO DE FATURAMENTO\s*-\s*(\d{2})\/(\d{4})/i);
   let total = null;
   const inicio = texto.search(/Total do Faturam/i);
   if (inicio >= 0) {
@@ -76,9 +77,13 @@ function lerResumoFatura(texto) {
     const valores = rodape.match(MOEDA);
     if (valores) total = paraNumero(valores[valores.length - 1]);
   }
+  // O que passa do valor das cópias é a locação/valor básico (ex.: R$ 532,70 da colorida)
+  const valorCopias = preco ? paraNumero(preco[2]) : null;
   return {
     contrato: contrato ? `${contrato[1]} - ${contrato[2].toUpperCase()}` : null,
+    mes: mes ? `${mes[1]}.${mes[2]}` : null,
     precoPagina: preco ? paraNumero(preco[1]) : null,
+    locacao: total !== null && valorCopias !== null ? Math.round((total - valorCopias) * 100) / 100 : 0,
     total,
   };
 }
