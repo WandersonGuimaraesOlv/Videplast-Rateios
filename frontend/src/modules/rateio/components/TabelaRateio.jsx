@@ -23,7 +23,7 @@ function Avisos({ avisos, tipo }) {
 }
 
 export default function TabelaRateio({ relatorio }) {
-  const { tipo, dados, totalGeral, avisos } = relatorio
+  const { tipo, dados, totalGeral, avisos, arquivos = [] } = relatorio
   const titulo = tipo === 'telefonia' ? 'Valor (R$)' : 'Total de páginas (mês)'
 
   return (
@@ -34,6 +34,16 @@ export default function TabelaRateio({ relatorio }) {
           Exportar CSV
         </button>
       </div>
+      {arquivos.length > 0 && (
+        <ul className="arquivos-lidos">
+          {arquivos.map((a) => (
+            <li key={a.nome}>
+              {a.nome}
+              {a.colorido && ' (colorida)'}: <strong>{formatarTotal(a.total, tipo)}</strong>
+            </li>
+          ))}
+        </ul>
+      )}
       <Avisos avisos={avisos} tipo={tipo} />
       <div className="tabela-rolagem">
         <table className="tabela">

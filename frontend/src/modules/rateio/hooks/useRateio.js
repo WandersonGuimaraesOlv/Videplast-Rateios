@@ -6,11 +6,11 @@ export function useRateio() {
   const [relatorio, setRelatorio] = useState(null)
   const [erro, setErro] = useState('')
 
-  async function processar(arquivoMedicao, arquivoSetores) {
+  async function processar(arquivosMedicao, arquivoSetores) {
     setCarregando(true)
     setErro('')
     setRelatorio(null)
-    const resposta = await enviarRateio(arquivoMedicao, arquivoSetores)
+    const resposta = await enviarRateio(arquivosMedicao, arquivoSetores)
     if (resposta.sucesso) setRelatorio(resposta)
     else setErro(resposta.erro || 'Erro ao processar os arquivos.')
     setCarregando(false)

@@ -11,4 +11,12 @@ function decodificarTexto(buffer) {
 
 const normalizar = (valor) => String(valor ?? '').trim().toUpperCase();
 
-module.exports = { decodificarTexto, normalizar };
+const semAcentos = (valor) => String(valor ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+/** Cabeçalho comparável: "Nº Serie" → "nserie", "Número do Chip" → "numerodochip". */
+const normalizarCabecalho = (valor) => semAcentos(valor).toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/** Código comparável (S/N, chip): só letras e números. "016.7PH.H0C.1V5" → "0167PHH0C1V5". */
+const normalizarCodigo = (valor) => semAcentos(valor).toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+module.exports = { decodificarTexto, normalizar, normalizarCabecalho, normalizarCodigo };

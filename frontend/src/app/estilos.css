@@ -44,3 +44,6 @@
 .mensagem-sucesso { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
 .mensagem-alerta { background: #fffbeb; border-color: #fde68a; color: #92400e; margin: 0 0 1rem; }
 .mensagem-info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+
+.arquivos-lidos { list-style: none; margin: 0 0 1rem; color: var(--cor-suave); font-size: .9rem; }
+.arquivos-lidos li + li { margin-top: .2rem; }

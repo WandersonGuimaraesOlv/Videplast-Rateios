@@ -55,7 +55,7 @@ test('impressoras: soma páginas da planilha por setor e avisa itens sem setor',
   assert.equal(totalDe(relatorio, 'GUARITA'), 50);
   assert.equal(relatorio.totalGeral, 1550);
   assert.equal(relatorio.dados.length, 16);
-  assert.deepEqual(relatorio.avisos.itensSemSetor, ['SEM-CADASTRO']);
+  assert.deepEqual(relatorio.avisos.itensSemSetor, ['SEMCADASTRO']);
   assert.equal(relatorio.avisos.valorForaDoRelatorio, 10);
 });
 
@@ -96,4 +96,70 @@ test('PDF de telefonia: pega o valor em reais da linha', () => {
   const texto = 'Linha 62999990001 Plano Empresa R$ 1.049,90';
   const relatorio = montarRelatorio(somarMedicaoTexto(texto, mapa, true), true);
   assert.equal(totalDe(relatorio, 'PCP'), 1049.9);
+});
+
+test('demonstrativo de faturamento: lê cópias das linhas grudadas do PDF', () => {
+  const { lerDemonstrativo, ehColorido } = require('../src/modules/rateio');
+  const texto = [
+    'DEMONSTRATIVO DE FATURAMENTO - 09/2026',
+    '21312 - VIDEPLAST - P&B',
+    '016.7PH.H0C.1V533006MX611DE0,00 0254.013257.938 03.925',
+    '016.7PH.H0C.X3934528MX611DE0,00108.299108.299 0 0',
+    '016.7PH.H0C.X6033326MX611DE0,0090.07893.4104.4233.332',
+    '32M.008.78 .   41840IRC32260,00126.523130.291 03.768',
+    '514.45H.H22.5MD28786MS610DN0,00 0111.823112.395 0572',
+    'R4P.066.131.2  37734M3655ID0,00 0413.964420.384 06.420',
+    'Subtotal230,000',
+  ].join('\n');
+  assert.deepEqual(lerDemonstrativo(texto), [
+    { serie: '0167PHH0C1V5', copias: 3925 },
+    { serie: '0167PHH0CX39', copias: 0 },
+    { serie: '0167PHH0CX60', copias: 3332 },
+    { serie: '32M00878', copias: 3768 },
+    { serie: '51445HH225MD', copias: 572 },
+    { serie: 'R4P0661312', copias: 6420 },
+  ]);
+  assert.equal(ehColorido(texto), false);
+  assert.equal(ehColorido('22315 - VIDEPLAST INDUSTRIA - COLOR'), true);
+});
+
+test('planilha "Rateio impressão": várias séries por célula e prefixo diferente da fatura', () => {
+  const setores = [
+    { Impressoras: 'ACABAMENTO', 'Nº Serie': '45146PHH38N9R/451445HH23PWX' },
+    { Impressoras: 'ARTES', 'Nº Serie': 'AK99000084D0/32M00878' },
+    { Impressoras: 'EXPEDIÇÃO', 'Nº Serie': '70167PHH0DLXG' },
+  ];
+  const { mapa } = montarMapaSetores(setores, false);
+  const leituras = [
+    'DEMONSTRATIVO DE FATURAMENTO',
+    '514.6PH.H38.N9R32814MS610DN0,00 0149.709153.628 03.919',
+    '016.7PH.H0D.LXG34109MX611DE0,00 0209.208212.770 03.562',
+    '32M.008.78 .   41840IRC32260,00126.523130.291 03.768',
+  ].join('\n');
+  const pb = montarRelatorio(somarMedicaoTexto(leituras, mapa, false), false);
+  assert.equal(totalDe(pb, 'ACABAMENTO'), 3919);
+  assert.equal(totalDe(pb, 'EXPEDIÇÃO'), 3562);
+  assert.equal(totalDe(pb, 'ARTES'), 3768);
+
+  // Na fatura colorida o mesmo equipamento vai para ARTES - COLORIDA
+  const cor = montarRelatorio(somarMedicaoTexto(leituras, mapa, false, { colorido: true }), false);
+  assert.equal(totalDe(cor, 'ARTES'), 0);
+  assert.equal(totalDe(cor, 'ARTES - COLORIDA'), 3768);
+});
+
+test('lerTabela escolhe a aba do mês mais recente e acha o cabeçalho fora da linha 1', () => {
+  const XLSX = require('xlsx');
+  const { lerTabela } = require('../src/modules/rateio');
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Impressoras', 'Nº Serie'], ['PCP', 'VELHO1234']]), 'Resumo');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Impressoras', 'Nº Serie'], ['PCP', 'JULHO1234']]), '07.2026');
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet([['Rateio de agosto'], [], ['Impressoras', 'Nº Serie'], ['PCP', 'AGOSTO123'], ['', '']]),
+    '08.2026'
+  );
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  assert.deepEqual(lerTabela({ originalname: 'Rateio impressão.xlsx', buffer }), [
+    { Impressoras: 'PCP', 'Nº Serie': 'AGOSTO123' },
+  ]);
 });
