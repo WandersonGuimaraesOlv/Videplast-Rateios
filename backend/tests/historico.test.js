@@ -10,6 +10,8 @@ async function planilhaHistorica() {
   resumo.addRow(['PCP', 'X', { formula: "IFERROR(VLOOKUP(A2,'08.2026'!A1:F18,5,),0)", result: 10 }, 50, { formula: 'C2-D2', result: -40 }]);
   resumo.addRow(['ARTES - COLORIDA', 'Y', { formula: "IFERROR(VLOOKUP(A3,'08.2026'!A1:F18,5,),0)", result: 5 }, 20, { formula: 'C3-D3', result: -15 }]);
   resumo.addRow(['', '', { formula: 'SUM(C2:C3)', result: 15 }, { formula: 'SUM(D2:D3)', result: 70 }]);
+  resumo.getColumn(5).width = 24;
+  resumo.getColumn(6).hidden = true;
   const mes = wb.addWorksheet('08.2026');
   mes.addRow(['Impressoras', 'Nº Serie', 'IP', 'Modelo', 'Paginas', 'Custo pagina', 'Custo Locação', 'Total', 'Contro de Custo', 'Rateio']);
   mes.addRow(['PCP', 'R4P0661312', '', 'M3655', 10, 0.07, 0, { formula: '(E2*F2)+G2' }, '1005PAUX52', { formula: 'H2/($H$4-$H$3)' }]);
@@ -55,6 +57,10 @@ test('planilha histórica: cria a aba do mês novo e a coluna no Resumo', async 
   assert.equal(resumo.getCell('F2').formula, 'D2-E2');
   assert.equal(resumo.getCell('D4').formula, 'SUM(D2:D3)');
   assert.equal(resumo.getCell('E4').formula, 'SUM(E2:E3)');
+  // "Diferença" continua visível e a coluna oculta continua oculta
+  assert.equal(resumo.getColumn(6).width, 24);
+  assert.equal(resumo.getColumn(6).hidden, false);
+  assert.equal(resumo.getColumn(7).hidden, true);
 });
 
 test('planilha histórica: crédito de cópias na fatura faz o Total da aba bater com a nota', async () => {

@@ -299,8 +299,16 @@ function atualizarResumo(resumo, nomeAba, data, linhasSetor) {
       destino.style = origem.style;
     }
   }
-  for (let c = ultimaColuna; c >= colNova; c--) resumo.getColumn(c + 1).width = resumo.getColumn(c).width;
-  resumo.getColumn(colNova).width = resumo.getColumn(colUltimoMes).width;
+  // Largura, coluna oculta e estilo também andam junto (senão "Diferença" fica escondida e a coluna oculta aparece)
+  const copiarColuna = (de, para) => {
+    const origem = resumo.getColumn(de);
+    const destino = resumo.getColumn(para);
+    destino.width = origem.width;
+    destino.hidden = origem.hidden;
+    if (origem.style) destino.style = origem.style;
+  };
+  for (let c = Math.max(ultimaColuna, colNova + 8); c >= colNova; c--) copiarColuna(c, c + 1);
+  copiarColuna(colUltimoMes, colNova);
 
   // Fórmulas em colunas anteriores que apontam para as colunas deslocadas (ex.: totais compartilhados)
   for (let r = 1; r <= resumo.rowCount; r++) {
@@ -342,6 +350,18 @@ function atualizarResumo(resumo, nomeAba, data, linhasSetor) {
         formula: `SUM(${letra}2:${letra}${r - 1})`,
         result: Object.values(linhasSetor).reduce((s, v) => s + v, 0),
       };
+    }
+  }
+  // Resultado em cache da "Diferença" (ex.: "=BF2-BG2"), para quem abre sem recalcular
+  const valorDe = (ref) => {
+    const c = resumo.getCell(ref);
+    return Number(c.type === ExcelJS.ValueType.Formula ? c.result : c.value) || 0;
+  };
+  for (let r = 2; r <= resumo.rowCount; r++) {
+    for (let c = colNova + 1; c <= colNova + 3; c++) {
+      const celula = resumo.getCell(r, c);
+      const m = celula.type === ExcelJS.ValueType.Formula && celula.formula.trim().match(/^([A-Z]{1,3}\d+)-([A-Z]{1,3}\d+)$/);
+      if (m) celula.value = { formula: celula.formula, result: valorDe(m[1]) - valorDe(m[2]) };
     }
   }
   return true;
