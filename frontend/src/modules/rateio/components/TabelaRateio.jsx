@@ -1,5 +1,5 @@
 import { formatarTotal } from '../../../shared/lib/formatos.js'
-import { baixarPlanilha } from '../services/baixar-planilha.js'
+import { baixarPlanilha } from '../../../shared/lib/baixar-planilha.js'
 
 function Avisos({ avisos, tipo }) {
   const { setoresDesconhecidos = [], itensSemSetor = [], valorForaDoRelatorio = 0 } = avisos || {}

@@ -1,7 +1,6 @@
 // Leitura dos arquivos enviados (CSV, Excel e PDF) para estruturas simples.
 const XLSX = require('xlsx');
-const pdfParse = require('pdf-parse');
-const { decodificarTexto, normalizarCabecalho } = require('../../shared');
+const { decodificarTexto, normalizarCabecalho, extrairTextoPdf } = require('../../shared');
 const { temColuna } = require('../colunas');
 
 const ehCsv = (arquivo) => arquivo.originalname.toLowerCase().endsWith('.csv');
@@ -101,18 +100,5 @@ function lerTabela(arquivo) {
   );
 }
 
-// Aceita as formas de exportação do pdf-parse 1.x (função) e 2.x (classe)
-async function extrairTextoPdf(buffer) {
-  try {
-    if (typeof pdfParse === 'function') return (await pdfParse(buffer)).text;
-    if (pdfParse && typeof pdfParse.default === 'function') return (await pdfParse.default(buffer)).text;
-    if (pdfParse && typeof pdfParse.PDFParse === 'function') {
-      return (await new pdfParse.PDFParse().parse(buffer)).text;
-    }
-    throw new Error('A biblioteca pdf-parse não foi carregada como uma função válida.');
-  } catch (err) {
-    throw new Error('Erro ao processar PDF: ' + err.message);
-  }
-}
-
+// extrairTextoPdf vem de shared (também usado pela telefonia)
 module.exports = { ehPdf, lerCsv, lerTabela, lerRotulosCentroCusto, extrairTextoPdf };
