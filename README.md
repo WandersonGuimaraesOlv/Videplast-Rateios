@@ -3,7 +3,7 @@
 Cruza a fatura/medição mensal (PDF, CSV ou Excel) com a lista de setores e soma o consumo por setor, na ordem oficial do relatório:
 
 - **Impressoras:** lista de setores com `S/N` (ou `SerialNumber`/`Série`) e `Setor`; medição com páginas (`Páginas/Mês`, `NoCópias`, `Páginas`, `Total` ou `Valor`).
-- **Telefonia:** lista de setores com `Número do Chip` e `Setor`; medição com o valor em R$.
+- **Telefonia (lista antiga):** lista de setores com `Número do Chip` e `Setor`; medição com o valor em R$. A fatura TIM com o Controle de Chips vai na aba **Telefonia (TIM)** (abaixo): a aba Impressão recusa o Controle de Chips e diz para usar essa aba.
 
 O relatório mostra os 16 setores, o total geral, avisa setores e itens que ficaram de fora e exporta CSV para o Excel.
 

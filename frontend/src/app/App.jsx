@@ -39,7 +39,11 @@ export default function App() {
       <main className="conteudo">
         {/* As duas abas ficam montadas para não perder os arquivos escolhidos ao trocar de aba */}
         <div className="painel-aba" role="tabpanel" hidden={aba !== 'impressao'}>
-          <FormularioRateio carregando={impressao.carregando} onProcessar={impressao.processar} />
+          <FormularioRateio
+            carregando={impressao.carregando}
+            onProcessar={impressao.processar}
+            onIrParaTelefonia={() => setAba('telefonia')}
+          />
           <MensagemStatus tipo="erro">{impressao.erro}</MensagemStatus>
           {impressao.relatorio && <TabelaRateio relatorio={impressao.relatorio} />}
           {impressao.relatorio && <TabelaValores valores={impressao.relatorio.valores} />}

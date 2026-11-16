@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   detectarTelefonia,
+  ehControleDeChips,
   montarMapaSetores,
   somarMedicaoTexto,
   somarMedicaoTabela,
@@ -74,6 +75,17 @@ test('telefonia: valores com vírgula decimal são somados corretamente', () => 
   assert.equal(relatorio.tipo, 'telefonia');
   assert.equal(totalDe(relatorio, 'EXPEDIÇÃO'), 1012.75);
   assert.equal(relatorio.totalGeral, 1012.75);
+});
+
+test('Controle de Chips da TIM é reconhecido (vai para a aba Telefonia); lista de chips por setor e de impressoras não', () => {
+  const controle = [
+    { 'Número do Chip': '64999990001', 'Setor ATUAL': 'Expedição', 'Centro de Custo ATUALIZADO': '1005COML08' },
+    { 'Número do Chip': '64999990002', 'Setor ATUAL': '', 'Centro de Custo ATUALIZADO': '' },
+  ];
+  assert.equal(ehControleDeChips(controle), true);
+  assert.equal(ehControleDeChips([{ 'Número do Chip': '62999990001', Setor: 'Expedição' }]), false);
+  assert.equal(ehControleDeChips([{ 'S/N': 'A1', Setor: 'PCP', 'Centro de Custo': '1005PIMP01' }]), false);
+  assert.equal(ehControleDeChips([]), false);
 });
 
 test('PDF: chave mais longa vence e pega o último número da linha', () => {

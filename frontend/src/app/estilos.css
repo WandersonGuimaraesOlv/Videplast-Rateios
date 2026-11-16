@@ -55,6 +55,8 @@
 .painel-aba { display: flex; flex-direction: column; gap: 1.5rem; }
 .painel-aba[hidden] { display: none; }
 .botao-discreto { background: #fff; color: var(--cor-texto); border: 1px solid #ccc; padding: 6px 12px; font-size: .85rem; }
+.dica-aba { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; margin: 0 0 1rem; }
+.dica-aba .botao { align-self: center; }
 .cabecalho-cartao h3 { margin: 0; font-size: 1rem; }
 
 /* Telefonia */

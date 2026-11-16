@@ -1,7 +1,7 @@
 // Regras do rateio por setor: funções puras, testadas em tests/calculo.test.js.
 const { ORDEM_SETORES } = require('../setores');
-const { valorDaColuna } = require('../colunas');
-const { paraNumero, arredondar2, normalizar, normalizarCodigo } = require('../../shared');
+const { valorDaColuna, temColuna } = require('../colunas');
+const { paraNumero, arredondar2, normalizar, normalizarCodigo, normalizarCabecalho } = require('../../shared');
 const { lerDemonstrativo } = require('./demonstrativo-service');
 
 // Uma célula pode trazer vários S/N: "45146PHH38N9R/451445HH23PWX"
@@ -13,6 +13,15 @@ const codigosDaCelula = (valor) =>
 
 /** Telefonia é detectada pela coluna "Número do Chip" na lista de setores. */
 const detectarTelefonia = (setores) => setores.length > 0 && valorDaColuna(setores[0], 'chip') !== '';
+
+/**
+ * O Controle de Chips da TIM ("Número do Chip" + "Centro de Custo ATUALIZADO") é lido na aba Telefonia (TIM).
+ * Enviado como lista de setores da aba Impressão, ele não tem "Setor" e o erro não diria onde usá-lo.
+ */
+function ehControleDeChips(setores) {
+  const cabecalhos = [...new Set(setores.slice(0, 5).flatMap((linha) => Object.keys(linha)))];
+  return temColuna(cabecalhos, 'chip') && cabecalhos.some((c) => normalizarCabecalho(c).includes('centrodecustoatualizad'));
+}
 
 /**
  * Mapa S/N (ou chip) → setor. Setores fora de ORDEM_SETORES ficam em `setoresDesconhecidos`
@@ -160,6 +169,7 @@ function montarRelatorio(acc, isTelefonia, setoresDesconhecidos = []) {
 
 module.exports = {
   detectarTelefonia,
+  ehControleDeChips,
   montarMapaSetores,
   buscarSetor,
   novoAcumulador,
