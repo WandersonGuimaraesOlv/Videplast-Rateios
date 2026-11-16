@@ -6,11 +6,11 @@ export function useRateioTelefonia() {
   const [rateio, setRateio] = useState(null)
   const [erro, setErro] = useState('')
 
-  async function processar(fatura, controle) {
+  async function processar(fatura, controle, ccValorGeral = '') {
     setCarregando(true)
     setErro('')
     setRateio(null)
-    const resposta = await enviarRateioTelefonia(fatura, controle)
+    const resposta = await enviarRateioTelefonia(fatura, controle, ccValorGeral)
     if (resposta.sucesso) setRateio(resposta)
     else setErro(resposta.erro || 'Erro ao calcular o rateio de telefonia.')
     setCarregando(false)

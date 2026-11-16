@@ -73,7 +73,7 @@ function gerarPlanilhaRateio(rateio) {
       r += 1;
     }
     if (g.ajusteGeral) {
-      aba.texto(COL.numero, r, 'AJUSTE GERAL DA FATURA (proporcional)');
+      aba.texto(COL.numero, r, g.valorGeralInteiro ? 'VALOR FORA DAS LINHAS (lançado inteiro neste CC)' : 'AJUSTE GERAL DA FATURA (proporcional)');
       aba.numero(COL.valor, r, g.ajusteGeral);
       r += 1;
     }

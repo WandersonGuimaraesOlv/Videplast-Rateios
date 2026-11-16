@@ -8,7 +8,8 @@ const { normalizarNome } = require('../../centros-custo');
  * mês (mensalidades + uso + outros créditos/débitos + outras operadoras) e vai para o
  * "Centro de Custo ATUALIZADO" do Controle de Chips. O percentual de cada centro de
  * custo é o total dele dividido pelo total da fatura — a soma sempre fecha com a fatura.
- * Valor da fatura que não pertence a nenhuma linha é rateado proporcionalmente.
+ * Valor da fatura que não pertence a nenhuma linha é rateado proporcionalmente — ou vai
+ * inteiro para um CC, quando a tela informa (ex.: multa de quebra de contrato de um setor).
  *
  * O CC é SEMPRE o da coluna "Centro de Custo ATUALIZADO" — o sistema não troca por
  * setor nem preenche linha vazia; só sugere nos avisos. Com o cadastro de centros de
@@ -52,6 +53,25 @@ function centroCustoDaLinha(chip, cadastro) {
 }
 
 /**
+ * CC que recebe inteiro o valor da fatura fora das linhas, informado na tela. '' = rateio
+ * proporcional. Com o cadastro, vale a mesma regra das linhas (1007... = 1005...) e o CC
+ * precisa existir — um código errado faria a multa sumir num grupo que ninguém confere.
+ */
+function destinoDoValorGeral(codigo, cadastro) {
+  const c = String(codigo || '').trim().toUpperCase();
+  if (!c) return '';
+  if (!/^[0-9A-Z]{4,20}$/.test(c)) {
+    throw new Error(`Centro de custo inválido para o valor fora das linhas: "${String(codigo).trim()}".`);
+  }
+  if (!cadastro) return c;
+  const ajustado = cadastro.ajustarUnidade(c);
+  if (!cadastro.buscar(ajustado)) {
+    throw new Error(`O centro de custo ${c}, informado para o valor fora das linhas, não existe no cadastro de centros de custo.`);
+  }
+  return ajustado;
+}
+
+/**
  * Distribui `centavos` entre os grupos proporcionalmente aos totais, sem perder centavo
  * (método do maior resto).
  */
@@ -75,9 +95,12 @@ function distribuirProporcional(centavos, totais) {
  * @param {ReturnType<import('./controle-chips-service').lerControleChips>} controle
  * @param {ReturnType<import('../../centros-custo').criarCadastroCentrosCusto> | null} [cadastro]
  *   cadastro oficial de centros de custo; sem ele o nome do grupo vem do Controle de Chips
+ * @param {{ ccValorGeral?: string }} [opcoes] ccValorGeral: CC que recebe inteiro o valor da
+ *   fatura que não pertence a nenhuma linha; vazio = rateio proporcional entre os CCs
  */
-function calcularRateio(fatura, controle, cadastro = null) {
+function calcularRateio(fatura, controle, cadastro = null, { ccValorGeral = '' } = {}) {
   const { chips, duplicados = [] } = controle;
+  const destinoInformado = destinoDoValorGeral(ccValorGeral, cadastro);
   const grupos = new Map();
   const semCentroCusto = [];
   const naoCadastrados = [];
@@ -109,15 +132,20 @@ function calcularRateio(fatura, controle, cadastro = null) {
     });
   }
 
+  // Diferença entre o total da fatura e a soma das linhas (ex.: cobrança geral do cliente, multa)
+  const somaLinhas = [...grupos.values()].reduce((a, g) => a + g.linhas.reduce((s, l) => s + l.totalCentavos, 0), 0);
+  const naoAtribuido = fatura.totalCentavos - somaLinhas;
+  // Vai inteiro para o CC informado (mesmo que nenhuma linha da fatura esteja nele)
+  const destinoGeral = naoAtribuido !== 0 ? destinoInformado : '';
+  if (destinoGeral && !grupos.has(destinoGeral)) grupos.set(destinoGeral, { chave: destinoGeral, linhas: [] });
+
   const lista = [...grupos.values()].map((g) => ({
     ...g,
     subtotalCentavos: g.linhas.reduce((a, l) => a + l.totalCentavos, 0),
   }));
-
-  // Diferença entre o total da fatura e a soma das linhas (ex.: cobrança geral do cliente)
-  const somaLinhas = lista.reduce((a, g) => a + g.subtotalCentavos, 0);
-  const naoAtribuido = fatura.totalCentavos - somaLinhas;
-  const ajustes = distribuirProporcional(naoAtribuido, lista.map((g) => g.subtotalCentavos));
+  const ajustes = destinoGeral
+    ? lista.map((g) => (g.chave === destinoGeral ? naoAtribuido : 0))
+    : distribuirProporcional(naoAtribuido, lista.map((g) => g.subtotalCentavos));
 
   const totalFatura = fatura.totalCentavos;
   const gruposFinal = lista.map((g, i) => {
@@ -127,7 +155,7 @@ function calcularRateio(fatura, controle, cadastro = null) {
     return {
       centroCusto: especial ? null : g.chave,
       tipo: g.chave === GRUPO_SEM_CC ? 'sem_centro_custo' : g.chave === GRUPO_NAO_CADASTRADO ? 'nao_cadastrado' : 'centro_custo',
-      setor: especial ? g.chave : (oficial ? oficial.nome : maisFrequente(g.linhas.map((l) => l.setor))),
+      setor: especial ? g.chave : (oficial ? oficial.nome : maisFrequente(g.linhas.map((l) => l.setor)) || g.chave),
       // true/false = existe ou não no cadastro de CCs; null = não se aplica / sem cadastro
       cadastrado: especial || !cadastro ? null : Boolean(oficial),
       quantidadeLinhas: g.linhas.length,
@@ -146,6 +174,8 @@ function calcularRateio(fatura, controle, cadastro = null) {
         })),
       subtotal: centavosParaReais(g.subtotalCentavos),
       ajusteGeral: centavosParaReais(ajustes[i]),
+      // true = o valor fora das linhas veio inteiro para este CC (e não por rateio proporcional)
+      valorGeralInteiro: Boolean(destinoGeral) && g.chave === destinoGeral,
       total: centavosParaReais(totalCentavos),
       percentual: totalFatura ? totalCentavos / totalFatura : 0,
     };
@@ -229,9 +259,12 @@ function calcularRateio(fatura, controle, cadastro = null) {
   }
 
   if (naoAtribuido !== 0) {
+    const valor = `R$ ${centavosParaReais(naoAtribuido).toFixed(2).replace('.', ',')}`;
     avisos.push({
       tipo: 'valor_geral',
-      mensagem: `R$ ${centavosParaReais(naoAtribuido).toFixed(2).replace('.', ',')} da fatura não pertence a nenhuma linha e foi rateado proporcionalmente entre os centros de custo.`,
+      mensagem: destinoGeral
+        ? `${valor} da fatura não pertence a nenhuma linha e foi lançado inteiro em ${descreverCc(destinoGeral)}, como informado na tela.`
+        : `${valor} da fatura não pertence a nenhuma linha e foi rateado proporcionalmente entre os centros de custo.`,
       itens: fatura.geraisCliente.map((g) => `${g.categoria}: R$ ${centavosParaReais(g.centavos).toFixed(2).replace('.', ',')}`),
     });
   }
@@ -275,6 +308,7 @@ function calcularRateio(fatura, controle, cadastro = null) {
     fatura: { ...fatura.cabecalho, total: centavosParaReais(totalFatura), linhasCobradas: fatura.linhas.size },
     totalRateado: centavosParaReais(totalRateadoCentavos),
     conferido: totalRateadoCentavos === totalFatura,
+    valorGeral: { valor: centavosParaReais(naoAtribuido), centroCusto: destinoGeral || null },
     grupos: gruposFinal,
     avisos,
   };

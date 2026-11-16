@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const multer = require('multer');
 const config = require('../config');
-const { uploadTelefoniaSchema, gerarRateioTelefonia } = require('../modules/telefonia');
+const { uploadTelefoniaSchema, opcoesTelefoniaSchema, gerarRateioTelefonia } = require('../modules/telefonia');
 const { getZodErrorMessage } = require('../modules/shared');
 
 const router = Router();
@@ -31,12 +31,16 @@ router.post('/telefonia', (req, res) => {
     if (!parsed.success) {
       return res.status(400).json({ sucesso: false, erro: getZodErrorMessage(parsed.error) });
     }
+    const opcoes = opcoesTelefoniaSchema.safeParse(req.body || {});
+    if (!opcoes.success) {
+      return res.status(400).json({ sucesso: false, erro: getZodErrorMessage(opcoes.error) });
+    }
 
     try {
-      const rateio = await gerarRateioTelefonia({
-        fatura: parsed.data.fatura[0],
-        controle: parsed.data.controle[0],
-      });
+      const rateio = await gerarRateioTelefonia(
+        { fatura: parsed.data.fatura[0], controle: parsed.data.controle[0] },
+        { ccValorGeral: opcoes.data.ccValorGeral }
+      );
       return res.json({ sucesso: true, ...rateio });
     } catch (error) {
       console.error('Erro no rateio de telefonia:', error);
