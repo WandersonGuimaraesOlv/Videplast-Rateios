@@ -6,6 +6,7 @@ const { gerarPlanilha } = require('./planilha-service');
 const { atualizarHistorico } = require('./historico-service');
 const {
   detectarTelefonia,
+  ehControleDeChips,
   montarMapaSetores,
   novoAcumulador,
   somarMedicaoTexto,
@@ -20,13 +21,19 @@ const {
 async function gerarRateio({ medicoes, setores }) {
   const linhasSetores = lerTabela(setores);
   if (linhasSetores.length === 0) throw new Error('A lista de setores não tem linhas.');
+  if (ehControleDeChips(linhasSetores)) {
+    throw new Error(
+      'Este arquivo é o Controle de Chips da TIM, que tem aba própria: clique em "Telefonia (TIM)", no alto da página, ' +
+        'ao lado de "Impressão", e envie lá a fatura TIM (PDF) e este Controle de Chips.'
+    );
+  }
 
   const isTelefonia = detectarTelefonia(linhasSetores);
   const { mapa, setoresDesconhecidos } = montarMapaSetores(linhasSetores, isTelefonia);
   if (Object.keys(mapa).length === 0) {
     throw new Error(
       isTelefonia
-        ? 'A lista de setores precisa das colunas "Número do Chip" e "Setor".'
+        ? 'A lista de setores precisa das colunas "Número do Chip" e "Setor". Para a fatura da TIM com o Controle de Chips, use a aba "Telefonia (TIM)", no alto da página.'
         : 'A lista de setores precisa de uma coluna de série ("S/N" ou "Nº Serie") e uma de setor ("Setor" ou "Impressoras").'
     );
   }

@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const app = require('../src/app');
+const { criarPdf, linhasFaturaTim, criarXlsx, CABECALHO_CONTROLE, linhaControle } = require('./support/arquivos');
 
 let servidor;
 let base;
@@ -56,4 +57,17 @@ test('POST /api/rateio/impressoras consolida CSV em latin1 (Excel pt-BR)', async
   assert.equal(corpo.sucesso, true);
   assert.equal(corpo.dados.find((d) => d.setor === 'EXPEDIÇÃO').total, 100);
   assert.equal(corpo.totalGeral, 1600);
+});
+
+test('POST /api/rateio/impressoras com o Controle de Chips manda usar a aba Telefonia (TIM)', async () => {
+  const fatura = criarPdf(linhasFaturaTim({ porAcesso: [['Mensalidades e Franquias', '64999990001', '25,90']], total: '25,90' }));
+  const controle = criarXlsx([CABECALHO_CONTROLE, linhaControle(['64999990001', 'Fulano', 'Expedição', '1005COML08'])]);
+  const resposta = await enviar([
+    ['medicao', 'fatura.pdf', fatura],
+    ['setores', 'controle.xlsx', controle],
+  ]);
+  const corpo = await resposta.json();
+  assert.equal(resposta.status, 422, JSON.stringify(corpo));
+  assert.match(corpo.erro, /Controle de Chips/);
+  assert.match(corpo.erro, /"Telefonia \(TIM\)"/);
 });
