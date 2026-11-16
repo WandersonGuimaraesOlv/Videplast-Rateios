@@ -42,7 +42,11 @@ function DetalheGrupo({ grupo }) {
         {grupo.ajusteGeral !== 0 && (
           <tr>
             <td colSpan="8" className="numero">
-              <em>Parte das cobranças gerais da fatura (rateio proporcional):</em>
+              <em>
+                {grupo.valorGeralInteiro
+                  ? 'Valor da fatura fora das linhas (multa ou cobrança geral), lançado inteiro neste CC:'
+                  : 'Parte das cobranças gerais da fatura (rateio proporcional):'}
+              </em>
             </td>
             <td className="numero">{formatarMoeda(grupo.ajusteGeral)}</td>
             <td />

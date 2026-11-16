@@ -173,6 +173,59 @@ describe('rateio de telefonia', () => {
     assert.equal(r.avisos[0].tipo, 'valor_geral');
   });
 
+  test('valor fora das linhas vai inteiro para o CC informado (ex.: multa de quebra de contrato)', () => {
+    const cadastro = criarCadastroCentrosCusto([
+      { centro_custo: '1005COML04', setores: 'Transportes', unidade: '1005' },
+      { centro_custo: '1005ADMI09', setores: 'Departamento Pessoal', unidade: '1005' },
+      { centro_custo: '1005PAUX50', setores: 'Adm. Industria', unidade: '1005' },
+    ]);
+    const f = () => fatura({
+      porAcesso: [
+        ['Mensalidades e Franquias', '64999990001', '10,00'],
+        ['Mensalidades e Franquias', '64999990002', '20,00'],
+      ],
+      gerais: [['Outros Créditos e Débitos', '14,00']],
+      total: '44,00',
+    });
+    const c = controle([
+      ['64999990001', 'Ana', 'Transporte', '1005COML04'],
+      ['64999990002', 'Caio', 'RH', '1005ADMI09'],
+    ]);
+
+    const r = calcularRateio(f(), c, cadastro, { ccValorGeral: ' 1005paux50 ' });
+    assert.equal(r.conferido, true, 'soma dos grupos = 44,00');
+    assert.deepEqual(
+      r.grupos.map((g) => [g.centroCusto, g.setor, g.quantidadeLinhas, g.subtotal, g.ajusteGeral, g.total, g.valorGeralInteiro]),
+      [
+        ['1005PAUX50', 'Adm. Industria', 0, 0, 14, 14, true],
+        ['1005ADMI09', 'Departamento Pessoal', 1, 20, 0, 20, false],
+        ['1005COML04', 'Transportes', 1, 10, 0, 10, false],
+      ],
+      'o CC informado recebe o valor inteiro mesmo sem nenhuma linha nele; os outros ficam só com as linhas'
+    );
+    assert.deepEqual(r.valorGeral, { valor: 14, centroCusto: '1005PAUX50' });
+    assert.match(r.avisos.find((a) => a.tipo === 'valor_geral').mensagem, /^R\$ 14,00 .*lançado inteiro em 1005PAUX50 \(Adm\. Industria\)/);
+
+    // CC que já tem linhas soma as linhas e o valor inteiro
+    const transporte = calcularRateio(f(), c, cadastro, { ccValorGeral: '1005COML04' }).grupos.find((g) => g.centroCusto === '1005COML04');
+    assert.deepEqual([transporte.subtotal, transporte.ajusteGeral, transporte.total], [10, 14, 24]);
+
+    // Em RV 1007... vale como 1005...; CC fora do cadastro é recusado com mensagem clara
+    assert.equal(calcularRateio(f(), c, cadastro, { ccValorGeral: '1007PAUX50' }).valorGeral.centroCusto, '1005PAUX50');
+    assert.throws(() => calcularRateio(f(), c, cadastro, { ccValorGeral: '1005ZZZZ99' }), { message: /1005ZZZZ99.*não existe no cadastro/ });
+
+    // Sem CC informado continua o rateio proporcional
+    const proporcional = calcularRateio(f(), c, cadastro);
+    assert.equal(proporcional.valorGeral.centroCusto, null);
+    assert.ok(proporcional.grupos.every((g) => g.valorGeralInteiro === false && g.ajusteGeral > 0));
+
+    // A planilha identifica a linha do valor lançado inteiro
+    const wb = XLSX.read(gerarPlanilhaRateio(r), { type: 'buffer' });
+    const textoA = XLSX.utils.sheet_to_json(wb.Sheets['TIM OUT-26'], { header: 1, defval: '' }).map((l) => l[0]);
+    assert.ok(textoA.includes('VALOR FORA DAS LINHAS (lançado inteiro neste CC)'));
+    assert.ok(!textoA.includes('AJUSTE GERAL DA FATURA (proporcional)'));
+  });
+
   test('mesmo setor em centros de custo diferentes gera aviso', () => {
     const r = calcularRateio(
       fatura({
